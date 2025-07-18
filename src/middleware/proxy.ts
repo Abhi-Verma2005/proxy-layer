@@ -33,7 +33,14 @@ export const createServiceProxy = (serviceName: string) => {
             proxyReq.setHeader(key, value as string);
           });
         }
-        logger.info(`Proxying ${req.method} ${(req as any).path} to ${serviceName}`);
+        // Enhanced logging for debugging
+        const user = (req as any).user;
+        const injectedHeaders = authHeaders ? Object.keys(authHeaders) : [];
+        logger.info(
+          `Proxying ${req.method} ${(req as any).originalUrl} to ${service.proxyConfig.target}${(req as any).originalUrl.replace(`/${serviceName}`, '')}` +
+          (user ? ` | user: ${user.email}` : '') +
+          (injectedHeaders.length ? ` | injected headers: ${injectedHeaders.join(', ')}` : '')
+        );
       },
       proxyRes: (proxyRes, req, res) => {
         // Log response

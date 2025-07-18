@@ -1,5 +1,8 @@
 import { User } from '../../types';
 import { logger } from '../../utils/logger';
+import { outlineDb } from '../../../integrations/outline/client';
+import { users as outlineUsersTable } from '../../../integrations/outline/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * Outline-specific service implementation
@@ -13,21 +16,20 @@ export class OutlineService {
   public async ensureUser(userData: User): Promise<User> {
     try {
       // Check if user exists in Outline database
-      // TODO: Implement Outline Prisma queries
-      let outlineUser: User | null = null;
+      const result = await outlineDb.select().from(outlineUsersTable).where(eq(outlineUsersTable.email, userData.email));
+      let outlineUser = result && result.length > 0 ? result[0] : null;
       if (outlineUser) {
-        // Update existing user if data has changed
-        // TODO: Implement Outline Prisma update
-        outlineUser = null;
-        // Temporary: return userData as placeholder until Drizzle integration
-        return userData;
+        return {
+          id: outlineUser.id,
+          email: outlineUser.email ?? '',
+          name: outlineUser.name ?? '',
+          avatar: outlineUser.avatarUrl || undefined,
+          createdAt: outlineUser.createdAt,
+          updatedAt: outlineUser.updatedAt,
+        };
       } else {
-        // Create new user in Outline database
-        // TODO: Implement Outline Prisma create
-        outlineUser = null;
-        logger.info(`Created new Outline user: ${userData.email}`);
-        // Temporary: return userData as placeholder until Drizzle integration
-        return userData;
+        logger.error(`Outline user not found: ${userData.email}`);
+        throw new Error('User not found in Outline DB');
       }
     } catch (error) {
       logger.error('Error ensuring Outline user:', error);

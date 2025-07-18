@@ -4,6 +4,10 @@ import { User } from '../../types';
 import { masterSupabase } from '../../config/supabase';
 import { logger } from '../../utils/logger';
 import jwt, { SignOptions } from 'jsonwebtoken';    
+import { mainDb } from '../../../integrations/main/client';
+import { user as mainUserTable } from '../../../integrations/main/schema';
+import { outlineService } from '../../services/outline/OutlineService';
+import { mainUserService } from '../../services/main/MainUserService';
 
 /**
  * Header-based authentication strategy
@@ -27,12 +31,14 @@ export class HeaderAuthStrategy extends BaseAuthStrategy {
         logger.error('Supabase token verification failed:', error);
         return { success: false, error: 'Invalid token' };
       }
-      // Get user from master database
+      // Get user from master database using Drizzle ORM
       const user = await this.getUserFromMasterDb(data.user.email!);
       if (!user) {
         return { success: false, error: 'User not found' };
       }
-      return { success: true, user };
+      // Ensure user exists in Outline DB (create if not)
+      const outlineUser = await outlineService.ensureUser(user);
+      return { success: true, user: outlineUser };
     } catch (error) {
       logger.error('Header auth strategy error:', error);
       return this.handleError(error);
@@ -94,12 +100,7 @@ export class HeaderAuthStrategy extends BaseAuthStrategy {
    */
   private async getUserFromMasterDb(email: string): Promise<User | null> {
     try {
-      // This method will be replaced with Drizzle ORM in the future
-      // For now, it's a placeholder to avoid breaking the code
-      // In a real scenario, you would query a Drizzle table here
-      // Example: const user = await masterPrisma.user.findUnique({ where: { email } });
-      // return user;
-      return null; // Placeholder
+      return await mainUserService.findByEmail(email);
     } catch (error) {
       logger.error('Error fetching user from master DB:', error);
       return null;

@@ -3,4 +3,5 @@ import postgres from 'postgres';
 import * as schema from './schema';
 
 const sql = postgres(process.env.OUTLINE_DATABASE_URL!);
-export const outlineDb = drizzle(sql, { schema }); 
+export const outlineDb = drizzle(sql, { schema });
+export { schema }; 
