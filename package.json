@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "lint": "eslint --ext .ts src tests",
-    "setup:outline": "ts-node integrations/_meta/generator.ts outline $OUTLINE_DATABASE_URL"
+    "setup:outline": "ts-node integrations/_meta/generator.ts outline $OUTLINE_DATABASE_URL",
+    "setup:main": "ts-node integrations/_meta/generator.ts main DIRECT_URL"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.52.0",

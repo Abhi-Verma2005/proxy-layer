@@ -3,19 +3,29 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import 'dotenv/config';
 
-const appName = process.argv[2] || 'outline';
-const dbUrl = process.argv[3] || process.env.OUTLINE_DATABASE_URL;
+// Parse command line arguments
+const args = process.argv.slice(2);
+const appName = args[0] || 'main';
+const dbEnvVar = args[1] || 'DATABASE_URL';
+
+// Get database URL from environment variable
+const dbUrl = process.env[dbEnvVar];
 
 if (!dbUrl) {
-  console.error('Error: Database URL not provided');
+  console.error(`Error: Environment variable '${dbEnvVar}' not found`);
+  console.error(`Usage: ts-node generator.ts <app-name> <env-var-name>`);
+  console.error(`Example: ts-node generator.ts main DIRECT_URL`);
   process.exit(1);
 }
 
 const outFile = `integrations/${appName}/schema.ts`;
 
+console.log(`Received arguments: { appName: '${appName}', dbEnvVar: '${dbEnvVar}' }`);
+console.log(`Reading env var '${dbEnvVar}': ${dbUrl.replace(/:[^:@]*@/, ':****@')}`);
+
 async function generateSchema() {
-  // Parse the URL to modify connection parameters
-  const url = new URL(dbUrl || 'http://localhost:5432');
+  // Parse the URL to check connection type
+  const url = new URL(dbUrl || '');
   
   // If using pooler (port 6543), suggest direct connection
   if (url.port === '6543') {
@@ -25,21 +35,20 @@ async function generateSchema() {
     // Optionally auto-switch to direct connection
     const directUrl = dbUrl?.replace(':6543', ':5432');
     console.log('🔄 Attempting direct connection...');
-    return generateSchemaWithUrl(directUrl);
+    return generateSchemaWithUrl(directUrl || '');
   }
   
   return generateSchemaWithUrl(dbUrl || '');
 }
 
-async function generateSchemaWithUrl(connectionString) {
+async function generateSchemaWithUrl(connectionString: string) {
   const client = new Client({
     connectionString,
-    connectionTimeoutMillis: 60000,  // Increased timeout
+    connectionTimeoutMillis: 60000,
     idleTimeoutMillis: 30000,
-    query_timeout: 120000,  // Increased query timeout
-    // Additional connection options for better reliability
+    query_timeout: 120000,
     ssl: {
-      rejectUnauthorized: false  // For Supabase connections
+      rejectUnauthorized: false
     },
     keepAlive: true,
     keepAliveInitialDelayMillis: 30000,
@@ -76,7 +85,7 @@ async function generateSchemaWithUrl(connectionString) {
       return;
     }
 
-    // Get columns for each table
+    // Get columns for each table with better constraint detection
     console.log('📋 Fetching column information...');
     const columnsResult = await executeWithRetry(client, `
       SELECT 
@@ -88,19 +97,33 @@ async function generateSchemaWithUrl(connectionString) {
         c.character_maximum_length,
         c.numeric_precision,
         c.numeric_scale,
-        tc.constraint_type
+        c.ordinal_position,
+        CASE 
+          WHEN pk.column_name IS NOT NULL THEN 'PRIMARY KEY'
+          WHEN fk.column_name IS NOT NULL THEN 'FOREIGN KEY'
+          ELSE NULL 
+        END as constraint_type
       FROM information_schema.columns c
-      LEFT JOIN information_schema.key_column_usage kcu 
-        ON c.table_name = kcu.table_name 
-        AND c.column_name = kcu.column_name
-      LEFT JOIN information_schema.table_constraints tc 
-        ON kcu.constraint_name = tc.constraint_name
+      LEFT JOIN (
+        SELECT ku.table_name, ku.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage ku
+          ON tc.constraint_name = ku.constraint_name
+        WHERE tc.constraint_type = 'PRIMARY KEY'
+      ) pk ON c.table_name = pk.table_name AND c.column_name = pk.column_name
+      LEFT JOIN (
+        SELECT ku.table_name, ku.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage ku
+          ON tc.constraint_name = ku.constraint_name
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+      ) fk ON c.table_name = fk.table_name AND c.column_name = fk.column_name
       WHERE c.table_schema = 'public'
       ORDER BY c.table_name, c.ordinal_position
     `);
 
-    // Generate basic schema structure
-    let schemaContent = `import { pgTable, serial, text, timestamp, boolean, integer, jsonb, uuid } from 'drizzle-orm/pg-core';
+    // Generate schema structure
+    let schemaContent = `import { pgTable, serial, text, timestamp, boolean, integer, jsonb, uuid, varchar } from 'drizzle-orm/pg-core';
 
 // Generated schema for ${appName}
 // Generated at: ${new Date().toISOString()}
@@ -109,7 +132,7 @@ async function generateSchemaWithUrl(connectionString) {
 `;
 
     // Group columns by table
-    const tableColumns = {};
+    const tableColumns: Record<string, any[]> = {};
     columnsResult.rows.forEach(col => {
       if (!tableColumns[col.table_name]) {
         tableColumns[col.table_name] = [];
@@ -126,37 +149,7 @@ async function generateSchemaWithUrl(connectionString) {
       
       columns.forEach(col => {
         const colName = col.column_name;
-        let colType = 'text()';
-        
-        // Map PostgreSQL types to Drizzle types
-        switch (col.data_type) {
-          case 'uuid':
-            colType = 'uuid()';
-            break;
-          case 'integer':
-          case 'bigint':
-            colType = 'integer()';
-            break;
-          case 'serial':
-          case 'bigserial':
-            colType = 'serial()';
-            break;
-          case 'boolean':
-            colType = 'boolean()';
-            break;
-          case 'timestamp with time zone':
-          case 'timestamp without time zone':
-            colType = 'timestamp()';
-            break;
-          case 'jsonb':
-            colType = 'jsonb()';
-            break;
-          case 'text':
-          case 'character varying':
-          case 'varchar':
-          default:
-            colType = 'text()';
-        }
+        let colType = mapPostgresToDrizzleType(col);
         
         // Apply constraints
         if (col.is_nullable === 'NO') {
@@ -165,6 +158,14 @@ async function generateSchemaWithUrl(connectionString) {
         
         if (col.constraint_type === 'PRIMARY KEY') {
           colType = colType.replace(')', '.primaryKey()');
+        }
+        
+        // Handle defaults
+        if (col.column_default) {
+          const defaultValue = parseDefaultValue(col.column_default, col.data_type);
+          if (defaultValue) {
+            colType = colType.replace(')', `.default(${defaultValue})`);
+          }
         }
         
         schemaContent += `  ${colName}: ${colType},\n`;
@@ -182,7 +183,7 @@ async function generateSchemaWithUrl(connectionString) {
     console.log(`✅ Schema generated successfully at ${outFile}`);
     console.log(`📝 Generated ${tablesResult.rows.length} table definitions`);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error generating schema:', error.message);
     
     if (error.message.includes('timeout') || error.code === 'CONNECT_TIMEOUT') {
@@ -207,7 +208,106 @@ async function generateSchemaWithUrl(connectionString) {
   }
 }
 
-async function executeWithRetry(client, query, maxRetries = 3) {
+function mapPostgresToDrizzleType(col: any): string {
+  const { data_type, character_maximum_length } = col;
+  
+  switch (data_type) {
+    case 'uuid':
+      return 'uuid()';
+    case 'integer':
+    case 'int4':
+      return 'integer()';
+    case 'bigint':
+    case 'int8':
+      return 'integer()';
+    case 'serial':
+    case 'serial4':
+      return 'serial()';
+    case 'bigserial':
+    case 'serial8':
+      return 'serial()';
+    case 'boolean':
+    case 'bool':
+      return 'boolean()';
+    case 'timestamp with time zone':
+    case 'timestamptz':
+      return 'timestamp({ withTimezone: true })';
+    case 'timestamp without time zone':
+    case 'timestamp':
+      return 'timestamp()';
+    case 'date':
+      return 'date()';
+    case 'time':
+      return 'time()';
+    case 'jsonb':
+      return 'jsonb()';
+    case 'json':
+      return 'json()';
+    case 'character varying':
+    case 'varchar':
+      if (character_maximum_length) {
+        return `varchar({ length: ${character_maximum_length} })`;
+      }
+      return 'varchar()';
+    case 'character':
+    case 'char':
+      if (character_maximum_length) {
+        return `char({ length: ${character_maximum_length} })`;
+      }
+      return 'char()';
+    case 'text':
+      return 'text()';
+    case 'numeric':
+    case 'decimal':
+      return 'decimal()';
+    case 'real':
+    case 'float4':
+      return 'real()';
+    case 'double precision':
+    case 'float8':
+      return 'doublePrecision()';
+    case 'smallint':
+    case 'int2':
+      return 'smallint()';
+    case 'bytea':
+      return 'bytea()';
+    default:
+      console.warn(`⚠️  Unknown data type '${data_type}', using text()`);
+      return 'text()';
+  }
+}
+
+function parseDefaultValue(defaultValue: string, dataType: string): string | null {
+  if (!defaultValue) return null;
+  
+  // Handle common default patterns
+  if (defaultValue.includes('nextval')) {
+    return null; // Serial columns, handled by serial()
+  }
+  
+  if (defaultValue === 'now()' || defaultValue.includes('CURRENT_TIMESTAMP')) {
+    return 'sql`now()`';
+  }
+  
+  if (defaultValue === 'true' || defaultValue === 'false') {
+    return defaultValue;
+  }
+  
+  if (defaultValue.startsWith("'") && defaultValue.endsWith("'")) {
+    return defaultValue; // String literal
+  }
+  
+  // Try to parse as number
+  const num = parseFloat(defaultValue);
+  if (!isNaN(num)) {
+    return defaultValue;
+  }
+  
+  // For complex defaults, wrap in sql``
+  return `sql\`${defaultValue}\``;
+}
+
+async function executeWithRetry(client: Client, query: string, maxRetries = 3): Promise<any> {
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await client.query(query);
@@ -219,4 +319,5 @@ async function executeWithRetry(client, query, maxRetries = 3) {
   }
 }
 
-generateSchema();
+// Run the generator
+generateSchema().catch(console.error);
