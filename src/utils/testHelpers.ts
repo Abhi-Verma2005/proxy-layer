@@ -1,11 +1,11 @@
 import { User } from '../types';
-import { masterPrisma } from '../config/database';
 
 /**
  * Test helper functions
  * Used for integration and unit testing
  */
 export const createTestUser = async (userData: Partial<User>): Promise<User> => {
+  // TODO: Re-implement test helpers using Drizzle ORM clients from integrations/.
   return masterPrisma.user.create({
     data: {
       email: userData.email || 'test@example.com',
@@ -16,10 +16,12 @@ export const createTestUser = async (userData: Partial<User>): Promise<User> => 
 };
 
 export const deleteTestUser = async (email: string): Promise<void> => {
+  // TODO: Re-implement test helpers using Drizzle ORM clients from integrations/.
   await masterPrisma.user.deleteMany({ where: { email } });
 };
 
 export const createOutlineTestUser = async (userData: Partial<User>): Promise<User> => {
+  // TODO: Re-implement test helpers using Drizzle ORM clients from integrations/.
   return masterPrisma.outlineUser.create({
     data: {
       email: userData.email || 'test@example.com',
@@ -30,5 +32,6 @@ export const createOutlineTestUser = async (userData: Partial<User>): Promise<Us
 };
 
 export const deleteOutlineTestUser = async (email: string): Promise<void> => {
+  // TODO: Re-implement test helpers using Drizzle ORM clients from integrations/.
   await masterPrisma.outlineUser.deleteMany({ where: { email } });
 }; 

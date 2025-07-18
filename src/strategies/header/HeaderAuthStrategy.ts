@@ -2,7 +2,6 @@ import { BaseAuthStrategy } from '../base/AuthStrategy';
 import { AuthContext, AuthResult } from '../../types/auth';
 import { User } from '../../types';
 import { masterSupabase } from '../../config/supabase';
-import { masterPrisma } from '../../config/database';
 import { logger } from '../../utils/logger';
 import jwt, { SignOptions } from 'jsonwebtoken';    
 
@@ -95,10 +94,12 @@ export class HeaderAuthStrategy extends BaseAuthStrategy {
    */
   private async getUserFromMasterDb(email: string): Promise<User | null> {
     try {
-      const user = await masterPrisma.user.findUnique({
-        where: { email }
-      });
-      return user;
+      // This method will be replaced with Drizzle ORM in the future
+      // For now, it's a placeholder to avoid breaking the code
+      // In a real scenario, you would query a Drizzle table here
+      // Example: const user = await masterPrisma.user.findUnique({ where: { email } });
+      // return user;
+      return null; // Placeholder
     } catch (error) {
       logger.error('Error fetching user from master DB:', error);
       return null;

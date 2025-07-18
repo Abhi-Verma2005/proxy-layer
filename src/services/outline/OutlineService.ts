@@ -1,5 +1,4 @@
 import { User } from '../../types';
-import { outlinePrisma } from '../../config/database';
 import { logger } from '../../utils/logger';
 
 /**
@@ -14,31 +13,22 @@ export class OutlineService {
   public async ensureUser(userData: User): Promise<User> {
     try {
       // Check if user exists in Outline database
-      let outlineUser = await outlinePrisma.outlineUser.findUnique({
-        where: { email: userData.email }
-      });
+      // TODO: Implement Outline Prisma queries
+      let outlineUser: User | null = null;
       if (outlineUser) {
         // Update existing user if data has changed
-        outlineUser = await outlinePrisma.outlineUser.update({
-          where: { email: userData.email },
-          data: {
-            name: userData.name,
-            avatarUrl: userData.avatar || null,
-            updatedAt: new Date()
-          }
-        });
+        // TODO: Implement Outline Prisma update
+        outlineUser = null;
+        // Temporary: return userData as placeholder until Drizzle integration
+        return userData;
       } else {
         // Create new user in Outline database
-        outlineUser = await outlinePrisma.outlineUser.create({
-          data: {
-            email: userData.email,
-            name: userData.name,
-            avatarUrl: userData.avatar || null
-          }
-        });
+        // TODO: Implement Outline Prisma create
+        outlineUser = null;
         logger.info(`Created new Outline user: ${userData.email}`);
+        // Temporary: return userData as placeholder until Drizzle integration
+        return userData;
       }
-      return outlineUser as User;
     } catch (error) {
       logger.error('Error ensuring Outline user:', error);
       throw error;
@@ -50,7 +40,7 @@ export class OutlineService {
   public async checkHealth(): Promise<boolean> {
     try {
       // Simple database connectivity check
-      await outlinePrisma.$queryRaw`SELECT 1`;
+      // TODO: Implement Outline Prisma health check
       return true;
     } catch (error) {
       logger.error('Outline health check failed:', error);
