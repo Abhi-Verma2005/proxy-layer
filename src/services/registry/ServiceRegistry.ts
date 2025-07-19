@@ -1,10 +1,10 @@
-import { ServiceDefinition, ServiceStatus } from '../../types/services';
-import { IAuthStrategy } from '../../types/auth';
-import { serviceDefinitions } from '../../config/services';
-import { HeaderAuthStrategy } from '../../strategies/header/HeaderAuthStrategy';
-import { OAuthStrategy } from '../../strategies/oauth/OAuthStrategy';
-import { JWTStrategy } from '../../strategies/jwt/JWTStrategy';
-import { logger } from '../../utils/logger';
+import { ServiceDefinition, ServiceStatus } from '@/types/services';
+import { IAuthStrategy } from '@/types/auth';
+import { serviceDefinitions } from '@/config/services';
+import { HeaderAuthStrategy } from '@/strategies/header/HeaderAuthStrategy';
+import { OAuthStrategy } from '@/strategies/oauth/OAuthStrategy';
+import { JWTStrategy } from '@/strategies/jwt/JWTStrategy';
+import { logger } from '@/utils/logger';
 
 /**
  * Central service registry
@@ -34,12 +34,41 @@ export class ServiceRegistry {
    * Load service definitions from configuration
    */
   private loadServices(): void {
-    serviceDefinitions.forEach(service => {
+    logger.debug(`🔍 Loading services from config...`);
+    logger.debug(`🔍 Total service definitions: ${serviceDefinitions.length}`);
+    
+    serviceDefinitions.forEach((service, index) => {
+      logger.debug(`🔍 Processing service ${index + 1}: ${service.name} (enabled: ${service.enabled})`);
+      
       if (service.enabled) {
+        // Validate service name before registration
+        if (!this.isValidServiceName(service.name)) {
+          logger.error(`❌ Invalid service name "${service.name}" - skipping registration`);
+          return;
+        }
+        
         this.services.set(service.name, service);
-        logger.info(`Service registered: ${service.name}`);
+        logger.info(`✅ Service registered: ${service.name}`);
+      } else {
+        logger.debug(`⏭️  Skipping disabled service: ${service.name}`);
       }
     });
+    
+    logger.debug(`🔍 Final registered services: ${Array.from(this.services.keys()).join(', ')}`);
+  }
+
+  /**
+   * Validate service name for path-to-regexp compatibility
+   */
+  private isValidServiceName(name: string): boolean {
+    // Must be non-empty
+    if (!name || name.trim() === '') {
+      return false;
+    }
+    
+    // Must match valid path segment pattern
+    const validPattern = /^[a-zA-Z0-9-_]+$/;
+    return validPattern.test(name);
   }
 
   /**

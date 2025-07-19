@@ -45,7 +45,6 @@ async function generateSchemaWithUrl(connectionString: string) {
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 60000,
-    idleTimeoutMillis: 30000,
     query_timeout: 120000,
     ssl: {
       rejectUnauthorized: false
@@ -127,13 +126,13 @@ async function generateSchemaWithUrl(connectionString: string) {
 
 // Generated schema for ${appName}
 // Generated at: ${new Date().toISOString()}
-// Tables found: ${tablesResult.rows.map(r => r.table_name).join(', ')}
+// Tables found: ${tablesResult.rows.map((r: any) => r.table_name).join(', ')}
 
 `;
 
     // Group columns by table
     const tableColumns: Record<string, any[]> = {};
-    columnsResult.rows.forEach(col => {
+    columnsResult.rows.forEach((col: any) => {
       if (!tableColumns[col.table_name]) {
         tableColumns[col.table_name] = [];
       }
@@ -141,13 +140,13 @@ async function generateSchemaWithUrl(connectionString: string) {
     });
 
     // Generate table definitions
-    tablesResult.rows.forEach(table => {
+    tablesResult.rows.forEach((table: any) => {
       const tableName = table.table_name;
       const columns = tableColumns[tableName] || [];
       
       schemaContent += `export const ${tableName} = pgTable('${tableName}', {\n`;
       
-      columns.forEach(col => {
+      columns.forEach((col: any) => {
         const colName = col.column_name;
         let colType = mapPostgresToDrizzleType(col);
         
