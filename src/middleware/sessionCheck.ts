@@ -167,7 +167,7 @@ export const oauthCallbackMiddleware = (req: Request, res: Response, next: NextF
         logger.debug(`📊 State data:`, stateData);
         
         // Redirect to Outline with session
-        const outlineUrl = process.env.OUTLINE_BASE_URL || 'http://localhost:3000';
+        const outlineUrl = process.env.OUTLINE_BASE_URL || 'https://outline.brain.emiactech.com';
         logger.info(`🔄 Redirecting to Outline after OAuth: ${outlineUrl}`);
         return res.redirect(outlineUrl);
         
@@ -178,7 +178,7 @@ export const oauthCallbackMiddleware = (req: Request, res: Response, next: NextF
     } else {
       logger.warn('⚠️  OAuth callback without state parameter');
       // Redirect to Outline anyway
-      const outlineUrl = process.env.OUTLINE_BASE_URL || 'http://localhost:3000';
+      const outlineUrl = process.env.OUTLINE_BASE_URL || 'https://outline.brain.emiactech.com';
       return res.redirect(outlineUrl);
     }
   }

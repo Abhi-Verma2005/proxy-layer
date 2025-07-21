@@ -309,7 +309,7 @@ export class OutlineSessionService {
    * Get Outline OAuth URL for user
    */
   generateOAuthUrl(user: User): string {
-    const baseUrl = process.env.OUTLINE_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.OUTLINE_BASE_URL || 'https://outline.brain.emiactech.com';
     
     const stateData = {
       userId: user.id,

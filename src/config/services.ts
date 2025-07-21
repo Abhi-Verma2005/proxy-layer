@@ -5,10 +5,10 @@ export const serviceDefinitions: ServiceDefinition[] = [
   {
     name: 'outline',
     displayName: 'Outline Docs',
-    baseUrl: process.env.OUTLINE_BASE_URL || 'http://localhost:3000',
+    baseUrl: process.env.OUTLINE_BASE_URL || 'https://outline.brain.emiactech.com',
     authStrategy: 'header',
     proxyConfig: {
-      target: process.env.OUTLINE_BASE_URL || 'http://localhost:3000',
+      target: process.env.OUTLINE_BASE_URL || 'https://outline.brain.emiactech.com',
       changeOrigin: true,
       secure: false,
       headers: {

@@ -87,7 +87,7 @@ export const sessionCheckMiddleware = async (req: Request, res: Response, next: 
 1. User clicks "Open Outline" → GET /outline?token=supabase_jwt
 2. Proxy validates token with main Supabase ✅
 3. Proxy checks Outline sessions in Outline Supabase ✅
-4. User has active session → Redirect to http://localhost:3000
+4. User has active session → Redirect to https://outline.brain.emiactech.com
 5. User sees Outline dashboard immediately
 ```
 
@@ -127,7 +127,7 @@ OUTLINE_SUPABASE_ANON_KEY=your_outline_supabase_anon_key
 OUTLINE_SUPABASE_SERVICE_ROLE_KEY=your_outline_supabase_service_key
 
 # Outline app configuration
-OUTLINE_BASE_URL=http://localhost:3000
+OUTLINE_BASE_URL=https://outline.brain.emiactech.com
 ```
 
 ## **🔍 Database Queries**
@@ -202,13 +202,13 @@ node test/cross-database-session-test.js
 ### **OAuth Redirect Logs**
 ```
 🔄 No active Outline session for user: user@example.com
-🔄 Redirecting to OAuth (no session): http://localhost:3000/auth/google?...
+🔄 Redirecting to OAuth (no session): https://outline.brain.emiactech.com/auth/google?...
 ```
 
 ### **Error Logs**
 ```
 ❌ Error checking Outline session (200ms): Database connection failed
-🔄 Redirecting to OAuth (error fallback): http://localhost:3000/auth/google?...
+🔄 Redirecting to OAuth (error fallback): https://outline.brain.emiactech.com/auth/google?...
 ```
 
 ## **🎯 Benefits**

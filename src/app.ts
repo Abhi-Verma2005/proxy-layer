@@ -27,7 +27,7 @@ const app: express.Express = express();
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'http://localhost:3000'],
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3001', 'https://outline.brain.emiactech.com'],
   credentials: true
 }));
 
@@ -74,7 +74,7 @@ app.get('/test-outline', (req, res) => {
   res.json({ 
     message: 'Test endpoint - proxy should work',
     service: 'outline',
-    target: 'http://localhost:3000'
+    target: 'https://outline.brain.emiactech.com'
   });
 });
 
